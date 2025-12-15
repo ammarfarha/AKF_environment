@@ -4,7 +4,7 @@ const projectSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true },
     location: { type: String },
     description: { type: String },
-    status: { type: String, enum: ["do", "cancelled", "work"], default: "do" },
+    status: { type: String, enum: ["proposed","do", "cancelled", "work"], default: "proposed" },
     screeningDate: { type: Date },
     startDate: { type: Date },
     endDate: { type: Date },
