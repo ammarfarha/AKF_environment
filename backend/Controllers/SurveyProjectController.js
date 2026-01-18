@@ -5,19 +5,20 @@ import Project from "../Models/ProjectModel.js";
 import Question from "../Models/QuestionModel.js";
 import Approval from "../Models/ApprovalModel.js";
 
-
-
-
-
 export const submitSurveyAnswers = async (req, res) => {
   try {
     const { projectId, templateId } = req.params;
     const { answers } = req.body;
     const userId = req.user?._id;
 
-    if (!userId) return res.status(401).json({ message: "Authentication required" });
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
     if (!Array.isArray(answers) || answers.length === 0) {
-      return res.status(400).json({ message: "answers must be a non-empty array" });
+      return res
+        .status(400)
+        .json({ message: "answers must be a non-empty array" });
     }
 
     const [project, template] = await Promise.all([
@@ -25,7 +26,8 @@ export const submitSurveyAnswers = async (req, res) => {
       SurveyTemplate.findById(templateId),
     ]);
     if (!project) return res.status(404).json({ message: "Project not found" });
-    if (!template) return res.status(404).json({ message: "Survey template not found" });
+    if (!template)
+      return res.status(404).json({ message: "Survey template not found" });
 
     if (template.prerequisites && template.prerequisites.length > 0) {
       const prerequisiteSurveys = await SurveyProject.find({
@@ -35,13 +37,21 @@ export const submitSurveyAnswers = async (req, res) => {
         isDone: true,
       });
 
-      const completedPrerequisiteIds = prerequisiteSurveys.map(sp => sp.surveyTemplate.toString());
-      const requiredPrerequisiteIds = template.prerequisites.map(id => id.toString());
-      const missingPrerequisites = requiredPrerequisiteIds.filter(id => !completedPrerequisiteIds.includes(id));
+      const completedPrerequisiteIds = prerequisiteSurveys.map((sp) =>
+        sp.surveyTemplate.toString()
+      );
+      const requiredPrerequisiteIds = template.prerequisites.map((id) =>
+        id.toString()
+      );
+      const missingPrerequisites = requiredPrerequisiteIds.filter(
+        (id) => !completedPrerequisiteIds.includes(id)
+      );
 
       if (missingPrerequisites.length > 0) {
-        const missingTemplates = await SurveyTemplate.find({ _id: { $in: missingPrerequisites } });
-        const missingTitles = missingTemplates.map(t => t.title).join(", ");
+        const missingTemplates = await SurveyTemplate.find({
+          _id: { $in: missingPrerequisites },
+        });
+        const missingTitles = missingTemplates.map((t) => t.title).join(", ");
         return res.status(403).json({
           message: "Prerequisites not completed",
           missingPrerequisites: missingTitles,
@@ -49,47 +59,87 @@ export const submitSurveyAnswers = async (req, res) => {
       }
     }
 
-    const totalQuestions = await Question.countDocuments({ surveyTemplate: templateId });
-    const questionIds = answers.map(a => a.questionId);
-    const questions = await Question.find({ _id: { $in: questionIds }, surveyTemplate: templateId });
-    if (questions.length !== questionIds.length) return res.status(400).json({ message: "Some questions do not belong to this template" });
+    const totalQuestions = await Question.countDocuments({
+      surveyTemplate: templateId,
+    });
+    const questionIds = answers.map((a) => a.questionId);
+    const questions = await Question.find({
+      _id: { $in: questionIds },
+      surveyTemplate: templateId,
+    });
+    if (questions.length !== questionIds.length)
+      return res
+        .status(400)
+        .json({ message: "Some questions do not belong to this template" });
 
-    let surveyProject = await SurveyProject.findOne({ surveyTemplate: templateId, project: projectId, user: userId });
+    let surveyProject = await SurveyProject.findOne({
+      surveyTemplate: templateId,
+      project: projectId,
+      user: userId,
+    });
     const isNew = !surveyProject;
     if (isNew) {
-      surveyProject = await SurveyProject.create({ surveyTemplate: templateId, project: projectId, user: userId });
+      surveyProject = await SurveyProject.create({
+        surveyTemplate: templateId,
+        project: projectId,
+        user: userId,
+      });
     }
 
     if (answers.length === 1) {
       const answerData = answers[0];
       await Answer.findOneAndUpdate(
         { surveyProject: surveyProject._id, question: answerData.questionId },
-        { surveyProject: surveyProject._id, question: answerData.questionId, value: answerData.value, note: answerData.note, order: answerData.order ?? 0 },
+        {
+          surveyProject: surveyProject._id,
+          question: answerData.questionId,
+          value: answerData.value,
+          note: answerData.note,
+          order: answerData.order ?? 0,
+        },
         { new: true, upsert: true }
       );
     } else {
       await Answer.deleteMany({ surveyProject: surveyProject._id });
-      const docs = answers.map((a, idx) => ({ surveyProject: surveyProject._id, question: a.questionId, value: a.value, note: a.note, order: a.order ?? idx }));
+      const docs = answers.map((a, idx) => ({
+        surveyProject: surveyProject._id,
+        question: a.questionId,
+        value: a.value,
+        note: a.note,
+        order: a.order ?? idx,
+      }));
       await Answer.insertMany(docs);
     }
 
-    const totalAnswersCount = await Answer.countDocuments({ surveyProject: surveyProject._id });
+    const totalAnswersCount = await Answer.countDocuments({
+      surveyProject: surveyProject._id,
+    });
     surveyProject.isDone = totalAnswersCount === totalQuestions;
     await surveyProject.save();
 
-    const allAnswers = await Answer.find({ surveyProject: surveyProject._id }).populate("question");
+    const allAnswers = await Answer.find({
+      surveyProject: surveyProject._id,
+    }).populate("question");
 
-    const severityBuckets = ["Negligible", "Low", "Medium", "High", "Not Applicable"];
+    const severityBuckets = [
+      "Negligible",
+      "Low",
+      "Medium",
+      "High",
+      "Not Applicable",
+    ];
 
     const sectionImpacts = {};
     const categoryImpacts = {};
 
-    const radioAnswers = allAnswers.filter(ans => ans.question.type === "radio");
+    const radioAnswers = allAnswers.filter(
+      (ans) => ans.question.type === "radio"
+    );
 
     const sectionMap = {};
     const categoryMap = {};
 
-    radioAnswers.forEach(ans => {
+    radioAnswers.forEach((ans) => {
       const section = ans.question.section || "";
       const category = ans.question.category || "";
 
@@ -101,13 +151,21 @@ export const submitSurveyAnswers = async (req, res) => {
     });
 
     for (const [section, answersArr] of Object.entries(sectionMap)) {
-      const totalSectionQuestions = await Question.countDocuments({ surveyTemplate: templateId, section, type: "radio" });
+      const totalSectionQuestions = await Question.countDocuments({
+        surveyTemplate: templateId,
+        section,
+        type: "radio",
+      });
       const isComplete = answersArr.length === totalSectionQuestions;
 
-      const impactCounts = severityBuckets.reduce((acc, k) => ({ ...acc, [k]: 0 }), {});
+      const impactCounts = severityBuckets.reduce(
+        (acc, k) => ({ ...acc, [k]: 0 }),
+        {}
+      );
       if (isComplete) {
-        answersArr.forEach(ans => {
-          const val = typeof ans.value === "string" ? ans.value.trim() : ans.value;
+        answersArr.forEach((ans) => {
+          const val =
+            typeof ans.value === "string" ? ans.value.trim() : ans.value;
           if (val && impactCounts.hasOwnProperty(val)) impactCounts[val] += 1;
         });
       }
@@ -115,18 +173,28 @@ export const submitSurveyAnswers = async (req, res) => {
       sectionImpacts[section] = {
         isComplete,
         impactCounts,
-        dominantImpact: isComplete ? calculateDominantImpact(impactCounts, severityBuckets) : null,
+        dominantImpact: isComplete
+          ? calculateDominantImpact(impactCounts, severityBuckets)
+          : null,
       };
     }
 
     for (const [category, answersArr] of Object.entries(categoryMap)) {
-      const totalCategoryQuestions = await Question.countDocuments({ surveyTemplate: templateId, category, type: "radio" });
+      const totalCategoryQuestions = await Question.countDocuments({
+        surveyTemplate: templateId,
+        category,
+        type: "radio",
+      });
       const isComplete = answersArr.length === totalCategoryQuestions;
 
-      const impactCounts = severityBuckets.reduce((acc, k) => ({ ...acc, [k]: 0 }), {});
+      const impactCounts = severityBuckets.reduce(
+        (acc, k) => ({ ...acc, [k]: 0 }),
+        {}
+      );
       if (isComplete) {
-        answersArr.forEach(ans => {
-          const val = typeof ans.value === "string" ? ans.value.trim() : ans.value;
+        answersArr.forEach((ans) => {
+          const val =
+            typeof ans.value === "string" ? ans.value.trim() : ans.value;
           if (val && impactCounts.hasOwnProperty(val)) impactCounts[val] += 1;
         });
       }
@@ -134,16 +202,19 @@ export const submitSurveyAnswers = async (req, res) => {
       categoryImpacts[category] = {
         isComplete,
         impactCounts,
-        dominantImpact: isComplete ? calculateDominantImpact(impactCounts, severityBuckets) : null,
+        dominantImpact: isComplete
+          ? calculateDominantImpact(impactCounts, severityBuckets)
+          : null,
       };
     }
-
 
     return res.status(isNew ? 201 : 200).json({
       surveyProject,
       sectionImpacts,
       categoryImpacts,
-      message: isNew ? "Survey created and answers saved" : "Survey answers updated",
+      message: isNew
+        ? "Survey created and answers saved"
+        : "Survey answers updated",
     });
 
   } catch (error) {
@@ -168,7 +239,9 @@ export const approveSurveyProject = async (req, res) => {
       return res.status(404).json({ message: "Survey project not found" });
     }
 
-    const template = await SurveyTemplate.findById(surveyProject.surveyTemplate);
+    const template = await SurveyTemplate.findById(
+      surveyProject.surveyTemplate
+    );
     if (!template) {
       return res.status(404).json({ message: "Survey template not found" });
     }
@@ -218,10 +291,6 @@ export const approveSurveyProject = async (req, res) => {
   }
 };
 
-
-
-
-
 // إرجاع جميع استبيانات مشروع معيّن
 export const getSurveyProjectsByProject = async (req, res) => {
   try {
@@ -241,9 +310,6 @@ export const getSurveyProjectsByProject = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
-
-
 
 export const getSurveyWithAnswers = async (req, res) => {
   try {
@@ -284,10 +350,10 @@ export const getSurveyWithAnswers = async (req, res) => {
         category: q.category,
         answer: answer
           ? {
-            value: answer.value,
-            note: answer.note,
-            order: answer.order,
-          }
+              value: answer.value,
+              note: answer.note,
+              order: answer.order,
+            }
           : null,
       };
     });
@@ -304,11 +370,7 @@ export const getSurveyWithAnswers = async (req, res) => {
 
 // للاستدعاء فوق
 function calculateDominantImpact(impactCounts, severityBuckets) {
-  const counts = severityBuckets.map(k => impactCounts[k] ?? 0);
+  const counts = severityBuckets.map((k) => impactCounts[k] ?? 0);
   const max = Math.max(...counts);
   return severityBuckets[counts.lastIndexOf(max)] ?? null;
 }
-
-
-
-

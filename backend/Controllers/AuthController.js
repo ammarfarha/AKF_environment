@@ -36,8 +36,6 @@ export const register = async (req, res) => {
       role: user.role,
     });
 
-
-
     return res.status(201).json({
       token,
       user: {

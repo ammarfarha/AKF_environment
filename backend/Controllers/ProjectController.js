@@ -1,6 +1,5 @@
 import Project from "../Models/ProjectModel.js";
 
-// إنشاء مشروع
 export const createProject = async (req, res) => {
   try {
     const {
@@ -30,7 +29,6 @@ export const createProject = async (req, res) => {
     });
 
     // res.locals.createdProjectId = project._id;
-
     return res.status(201).json({ project });
   } catch (error) {
     console.error("Create project error:", error);
@@ -38,7 +36,6 @@ export const createProject = async (req, res) => {
   }
 };
 
-// إرجاع جميع المشاريع
 export const getAllProjects = async (req, res) => {
   try {
     const projects = await Project.find();
@@ -49,11 +46,11 @@ export const getAllProjects = async (req, res) => {
   }
 };
 
-// إرجاع المشاريع يلي مستلمها الفوكل بوينت المسجل دخول
 export const getFocalPointProjects = async (req, res) => {
   try {
     const userId = req.user?._id;
-    if (!userId) return res.status(401).json({ message: "Authentication required" });
+    if (!userId)
+      return res.status(401).json({ message: "Authentication required" });
 
     const projects = await Project.find({ manager: userId });
     return res.status(200).json({ projects });
@@ -62,10 +59,12 @@ export const getFocalPointProjects = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 export const getFocalPointProjectsUsedId = async (req, res) => {
   try {
     const userId = req.params.userId;
-    if (!userId) return res.status(401).json({ message: "Authentication required" });
+    if (!userId)
+      return res.status(401).json({ message: "Authentication required" });
 
     const projects = await Project.find({ manager: userId });
     return res.status(200).json({ projects });

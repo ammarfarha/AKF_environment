@@ -1,7 +1,7 @@
 import express from "express";
-import { getAllUsers, getUserById, updateRoleToEmployee } from "../Controllers/UserController.js";
+import { getAllFocalPoint, getAllUsers, getUserById, updateRoleToEmployee } from "../Controllers/UserController.js";
 import { isAdmin } from "../Middlewares/IsAdminMiddleware.js";
-import { Authenticate } from "../Middlewares/authMiddleware.js";
+import { Authenticate } from "../Middlewares/AuthMiddleware.js";
 
 const userRoutes = express.Router();
 
@@ -11,6 +11,7 @@ userRoutes.use(Authenticate);
 userRoutes.use(isAdmin);
 
 userRoutes.get("/", getAllUsers);
+userRoutes.get("/focal", getAllFocalPoint);
 userRoutes.get("/:id", getUserById);
 userRoutes.put("/:id/update-role-to-employee", updateRoleToEmployee);
 
